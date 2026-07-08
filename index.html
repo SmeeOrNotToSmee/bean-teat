@@ -435,6 +435,8 @@
     let customMenuItems = [];
     let menuOverrides = {};
     let deletedItemIds = [];
+    // null = no restriction set by the admin yet (every meal/bundle is eligible).
+    let loyaltyEligibleBundleIds = null;
 
     try{
       const res = await fetch(`${SUPABASE_URL}/rest/v1/bean_menu_state?id=eq.1&select=*`, {
@@ -467,6 +469,8 @@
           if(ing && ing.name) INGREDIENT_PRICES[ing.name] = Number(ing.price) || 0;
         });
       }
+      // Loyalty: which meals/bundles the admin has allowed to be redeemed for a free meal.
+      loyaltyEligibleBundleIds = Array.isArray(row.loyalty_eligible_bundles) ? row.loyalty_eligible_bundles : null;
     }catch(err){
       console.error('Failed to load shared menu state, falling back to defaults:', err);
       // Fall back to whatever menu-data.js ships with — the calculator still works,
@@ -1969,9 +1973,18 @@
       document.getElementById('redeemLoyaltyModal').close();
       if(!cid) return;
 
-      const bundleLines = state.cart.filter(l => l.type === 'bundle');
+      function isLoyaltyEligible(l){
+        return loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(l.id);
+      }
+      const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
       if(!bundleLines.length){
-        showAlert('Add a meal to the current order first — the reward takes the price of the cheapest meal off the total.', 'No Meal in Cart');
+        const anyMeal = state.cart.some(l => l.type === 'bundle');
+        showAlert(
+          anyMeal
+            ? "None of the meals in this order are eligible for loyalty redemption. Add an eligible meal first."
+            : 'Add a meal to the current order first — the reward takes the price of the cheapest eligible meal off the total.',
+          'No Eligible Meal in Cart'
+        );
         return;
       }
       if(isRedemptionQueued(cid)){

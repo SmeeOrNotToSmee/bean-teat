@@ -413,7 +413,7 @@
       <button class="btn" id="closeRedeemLoyaltyModal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <div id="redeemLoyaltyMessage">Redeem a free meal for this customer? This will take the price of their cheapest meal off this order's total. 10 stamps will be used once checkout is completed.</div>
+      <div id="redeemLoyaltyMessage">Redeem a free meal for this customer? This will make the eligible meal free. 10 stamps will be used once checkout is completed.</div>
       <div id="redeemEligibleMealList" style="display:none;flex-direction:column;gap:8px;"></div>
       <div class="toolrow" style="justify-content:flex-end;gap:10px;">
         <button class="btn" id="cancelRedeemLoyaltyBtn">Cancel</button>
@@ -564,7 +564,7 @@
 
     const state = {
       cart:[], discountPct:0, history:[], fulfillment:'pickup', deliveryZone:'city',
-      mode:'regular', loyaltyReward:0, pendingRedemptions:[],
+      mode:'regular', pendingRedemptions:[],
       // Catering keeps its own separate cart/discount/fulfillment — entirely independent of the regular order above.
       cateringCart:[], cateringDiscountPct:0, cateringFulfillment:'pickup', cateringDeliveryZone:'city'
     };
@@ -577,7 +577,6 @@
         localStorage.setItem(STATE_KEY, JSON.stringify({
           cart: state.cart,
           discountPct: state.discountPct,
-          loyaltyReward: state.loyaltyReward,
           pendingRedemptions: state.pendingRedemptions,
           fulfillment: state.fulfillment,
           deliveryZone: state.deliveryZone,
@@ -599,7 +598,6 @@
         const saved = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
         if(Array.isArray(saved.cart)) state.cart = saved.cart;
         if(typeof saved.discountPct === 'number') state.discountPct = saved.discountPct;
-        if(typeof saved.loyaltyReward === 'number') state.loyaltyReward = saved.loyaltyReward;
         if(Array.isArray(saved.pendingRedemptions)) state.pendingRedemptions = saved.pendingRedemptions;
         if(saved.fulfillment) state.fulfillment = saved.fulfillment;
         if(saved.deliveryZone) state.deliveryZone = saved.deliveryZone;
@@ -1257,7 +1255,7 @@
       const subtotal = state.cart.reduce((s,l)=>s + l.unitPrice*l.qty, 0);
       const manual = +(discountableSubtotal(state.cart) * (state.discountPct/100)).toFixed(2);
       const deliveryFee = state.fulfillment==='delivery' ? (ZONE_FEES[state.deliveryZone]||0) : 0;
-      const loyaltyReward = state.loyaltyReward || 0;
+      const loyaltyReward = getLoyaltyRewardTotal();
       const total = Math.max(0, subtotal + deliveryFee - manual - loyaltyReward);
 
       document.getElementById('subtotal').textContent = currency(subtotal);
@@ -1964,6 +1962,34 @@
       return loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(l.id);
     }
 
+    // Every unit of every eligible meal currently in the cart is a "slot" that could
+    // be given away free. Recomputed live from the cart every time it's needed, so
+    // removing/swapping the meal a reward was going to apply to is always reflected —
+    // nothing is ever frozen at the moment of clicking Redeem.
+    function getEligibleMealSlots(){
+      const slots = [];
+      state.cart.forEach(l => {
+        if(l.type === 'bundle' && isLoyaltyEligible(l)){
+          for(let i=0;i<l.qty;i++) slots.push(l.unitPrice);
+        }
+      });
+      slots.sort((a,b)=>a-b);
+      return slots;
+    }
+
+    // Assigns each queued redemption the cheapest available slot, in the order they
+    // were queued. A redemption with no slot left for it (e.g. the meal it was going
+    // to apply to got removed) comes back with mealPrice 0 — it discounts nothing and
+    // won't cost the customer stamps at checkout.
+    function getLoyaltyRedemptionAssignments(){
+      const slots = getEligibleMealSlots();
+      return state.pendingRedemptions.map((r, i) => ({ cid: r.cid, mealPrice: i < slots.length ? slots[i] : 0 }));
+    }
+
+    function getLoyaltyRewardTotal(){
+      return +getLoyaltyRedemptionAssignments().reduce((s,r)=>s+r.mealPrice, 0).toFixed(2);
+    }
+
     function eligibleBundleMenuItems(){
       return (MENU.bundles || []).filter(b => loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(b.id));
     }
@@ -1981,27 +2007,28 @@
     }
 
     // Renders the single redeem dialog's content based on whether the cart currently
-    // has an eligible meal — either the normal confirm, or a list of eligible meals
-    // to add first, all inside the one popup instead of a second one after the fact.
+    // has a free eligible-meal slot — either the normal confirm, or a list of eligible
+    // meals to add first, all inside the one popup instead of a second one after the fact.
     function renderRedeemModalContent(){
       const titleEl = document.getElementById('redeemLoyaltyTitle');
       const msgEl = document.getElementById('redeemLoyaltyMessage');
       const listEl = document.getElementById('redeemEligibleMealList');
       const confirmBtn = document.getElementById('confirmRedeemLoyaltyBtn');
 
-      const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
+      const freeSlots = getEligibleMealSlots().length - state.pendingRedemptions.length;
 
-      if(bundleLines.length){
+      if(freeSlots > 0){
         titleEl.textContent = '🎉 Redeem Reward';
-        msgEl.textContent = "Redeem a free meal for this customer? This will take the price of their cheapest meal off this order's total. 10 stamps will be used once checkout is completed.";
+        msgEl.textContent = "Redeem a free meal for this customer? This will make the eligible meal free. 10 stamps will be used once checkout is completed.";
         listEl.style.display = 'none';
         listEl.innerHTML = '';
         confirmBtn.style.display = 'inline-flex';
         return;
       }
 
-      // No eligible meal in the cart yet — same dialog, different content: let them
-      // add one right here instead of bouncing to a second popup.
+      // No free eligible-meal slot — either there's no eligible meal at all, or every
+      // eligible meal in the cart is already spoken for by another queued redemption.
+      // Same dialog, different content: let them add one right here.
       titleEl.textContent = 'No Eligible Meal in Cart';
       confirmBtn.style.display = 'none';
       const eligible = eligibleBundleMenuItems();
@@ -2013,7 +2040,7 @@
         return;
       }
 
-      msgEl.textContent = 'None of the meals in this order are eligible for loyalty redemption. Add one of these instead:';
+      msgEl.textContent = 'There\'s no eligible meal free to redeem against right now. Add one of these instead:';
       listEl.style.display = 'flex';
       listEl.innerHTML = eligible.map(item => `
         <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
@@ -2050,22 +2077,24 @@
       document.getElementById('redeemLoyaltyModal').close();
       if(!cid) return;
 
-      const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
-      if(!bundleLines.length) return; // shouldn't happen — button is hidden in this case
       if(isRedemptionQueued(cid)){
         showAlert('A reward for this CID is already queued for this order.', 'Already Queued');
         return;
       }
-      const cheapestMealPrice = Math.min(...bundleLines.map(l => l.unitPrice));
+      const freeSlots = getEligibleMealSlots().length - state.pendingRedemptions.length;
+      if(freeSlots <= 0) return; // shouldn't happen — button is hidden in this case
 
-      // Nothing is deducted from the server yet — the stamps are only spent once
-      // checkout actually completes, so an abandoned/cleared order never costs a customer stamps.
-      state.pendingRedemptions.push({ cid, mealPrice: cheapestMealPrice });
-      state.loyaltyReward = +(state.pendingRedemptions.reduce((s,r)=>s+r.mealPrice,0)).toFixed(2);
+      // Nothing is deducted from the server yet, and no price is frozen here either —
+      // the stamps are only spent (and the discount amount finalized) once checkout
+      // actually completes, so removing/swapping the meal always reflects correctly,
+      // and an abandoned/cleared order never costs a customer stamps.
+      state.pendingRedemptions.push({ cid });
       renderTotals();
       renderLoyaltyStatusDisplay(null);
 
-      showAlert(`Reward queued! ${currency(cheapestMealPrice)} (their cheapest meal) will come off this order's total, and 10 stamps will be used from this customer's card once checkout is completed.`, 'Reward Queued');
+      const assignments = getLoyaltyRedemptionAssignments();
+      const mealPrice = assignments[assignments.length - 1].mealPrice;
+      showAlert(`Reward queued! ${currency(mealPrice)} (their cheapest eligible meal) will come off this order's total, and 10 stamps will be used from this customer's card once checkout is completed.`, 'Reward Queued');
     });
 
 
@@ -2082,9 +2111,13 @@
       const subtotal=state.cart.reduce((s,l)=>s+l.unitPrice*l.qty,0);
       const manual=+(discountableSubtotal(state.cart)*(state.discountPct/100)).toFixed(2);
       const fee=state.fulfillment==='delivery'?(ZONE_FEES[state.deliveryZone]||0):0;
-      const loyaltyReward = state.loyaltyReward || 0;
+      // Final assignment happens right now, live off the actual cart — if a meal a
+      // reward was going to apply to got removed/swapped since it was queued, this
+      // reflects that correctly instead of using a price frozen at redeem time.
+      const loyaltyAssignments = getLoyaltyRedemptionAssignments();
+      const loyaltyReward = getLoyaltyRewardTotal();
       const total=Math.max(0, +(subtotal+fee-manual-loyaltyReward).toFixed(2));
-      const loyaltyRedemptions = state.pendingRedemptions.map(r => ({ cid:r.cid, mealPrice:r.mealPrice }));
+      const loyaltyRedemptions = loyaltyAssignments.filter(r => r.mealPrice > 0);
       const entry={
         id:Date.now(),
         employee: employeeName,
@@ -2094,11 +2127,13 @@
 
       const cid = getValidLoyaltyCid();
       const hasMeal = entry.items.some(i => i.type === 'bundle');
-      const redemptionsToApply = state.pendingRedemptions.slice();
+      // Only redemptions that actually landed on a real meal spend stamps — one that
+      // lost its assigned meal before checkout is dropped for free, no stamps spent.
+      const redemptionsToApply = loyaltyRedemptions.slice();
 
       state.history.unshift(entry);
       pushHistoryToStorage(entry);
-      state.cart=[]; state.discountPct=0; state.loyaltyReward=0; state.pendingRedemptions=[]; renderAll();
+      state.cart=[]; state.discountPct=0; state.pendingRedemptions=[]; renderAll();
 
       let loyaltyMsg = '';
 
@@ -2142,7 +2177,7 @@
       if(pendingClearTarget==='catering'){
         state.cateringCart=[]; state.cateringDiscountPct=0; renderCateringAll();
       } else {
-        state.cart=[]; state.discountPct=0; state.loyaltyReward=0; state.pendingRedemptions=[]; renderAll(); renderIngredients();
+        state.cart=[]; state.discountPct=0; state.pendingRedemptions=[]; renderAll(); renderIngredients();
       }
       document.getElementById('confirmClearModal').close();
     });

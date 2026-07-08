@@ -253,6 +253,14 @@
         <button class="btn" id="openRecipesBtn" style="align-self:flex-start;">📋 Open Recipes</button>
       </div>
     </div>
+
+    <div class="panel">
+      <h2>🎁 Loyalty</h2>
+      <div class="content">
+        <div class="small">Look up a customer's CID and manually add or remove stamps — for corrections, comps, or fixing a mistake.</div>
+        <button class="btn" id="openLoyaltyBtn" style="align-self:flex-start;">🎁 Open Loyalty</button>
+      </div>
+    </div>
     </div>
 
     <div id="ingredientsPanel" style="display:none;">
@@ -278,6 +286,36 @@
       <div class="panel">
         <h2>All Ingredients</h2>
         <div class="content" id="ingredientsList" style="gap:8px;"></div>
+      </div>
+    </div>
+
+    <div id="loyaltyPanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost" id="backFromLoyaltyBtn">← Back to Menu</button>
+      </div>
+
+      <div class="panel">
+        <h2>🎁 Look Up a Customer</h2>
+        <div class="content">
+          <div class="small">Enter a customer's CID to see their current stamp count.</div>
+          <input type="text" id="adminLoyaltyCid" placeholder="Loyalty Num: CID" inputmode="numeric" maxlength="8" style="max-width:220px;">
+          <div id="adminLoyaltyStatus" class="muted" style="font-size:.9rem;"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Manually Add / Remove Stamps</h2>
+        <div class="content">
+          <div class="small">For corrections or comps — this doesn't go through the normal checkout/redeem flow.</div>
+          <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:end;">
+            <div>
+              <label for="adminLoyaltyAmount">Amount</label>
+              <input type="number" id="adminLoyaltyAmount" min="1" step="1" value="1">
+            </div>
+            <button class="btn primary" id="adminAddStampsBtn">+ Add</button>
+            <button class="btn danger" id="adminRemoveStampsBtn">− Remove</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1169,6 +1207,16 @@
     dashboardPanels.style.display = 'block';
   });
 
+  const loyaltyPanel = document.getElementById('loyaltyPanel');
+  document.getElementById('openLoyaltyBtn').addEventListener('click', () => {
+    dashboardPanels.style.display = 'none';
+    loyaltyPanel.style.display = 'block';
+  });
+  document.getElementById('backFromLoyaltyBtn').addEventListener('click', () => {
+    loyaltyPanel.style.display = 'none';
+    dashboardPanels.style.display = 'block';
+  });
+
   const recipesModal = document.getElementById('recipesModal');
   document.getElementById('openRecipesBtn').addEventListener('click', () => recipesModal.showModal());
   document.getElementById('closeRecipesModal').addEventListener('click', () => recipesModal.close());
@@ -1334,6 +1382,113 @@
 
     nameInput.value = '';
     priceInput.value = '';
+  });
+
+  // ---------- Loyalty (manual stamp lookup/add/remove — separate from the checkout redeem flow) ----------
+  const adminLoyaltyCidInput = document.getElementById('adminLoyaltyCid');
+  const adminLoyaltyStatusEl = document.getElementById('adminLoyaltyStatus');
+  const adminLoyaltyAmountInput = document.getElementById('adminLoyaltyAmount');
+  let adminLoyaltyDebounce = null;
+
+  function getValidAdminLoyaltyCid(){
+    const val = (adminLoyaltyCidInput.value || '').trim();
+    return /^\d{1,8}$/.test(val) ? val : null;
+  }
+
+  async function fetchLoyaltyStamps(cid){
+    try{
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/bean_loyalty?cid=eq.${encodeURIComponent(cid)}&select=stamps`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      if(!res.ok) return null;
+      const rows = await res.json();
+      return rows.length ? rows[0].stamps : 0;
+    }catch(err){ console.error('Loyalty lookup failed:', err); return null; }
+  }
+
+  async function setLoyaltyStamps(cid, stamps){
+    try{
+      const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/bean_loyalty?cid=eq.${encodeURIComponent(cid)}&select=cid`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      const rows = existingRes.ok ? await existingRes.json() : [];
+      const body = JSON.stringify({ cid, stamps, updated_at: new Date().toISOString() });
+
+      if(rows.length){
+        await fetch(`${SUPABASE_URL}/rest/v1/bean_loyalty?cid=eq.${encodeURIComponent(cid)}`, {
+          method:'PATCH',
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+          body
+        });
+      }else{
+        await fetch(`${SUPABASE_URL}/rest/v1/bean_loyalty`, {
+          method:'POST',
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type':'application/json', Prefer:'return=minimal' },
+          body
+        });
+      }
+      return true;
+    }catch(err){ console.error('Loyalty save failed:', err); return false; }
+  }
+
+  function renderAdminLoyaltyStatus(stamps){
+    if(stamps === null){
+      adminLoyaltyStatusEl.textContent = 'Could not check loyalty status.';
+      return;
+    }
+    adminLoyaltyStatusEl.textContent = stamps >= 10
+      ? `⭐ ${stamps}/10 stamps — reward ready`
+      : `⭐ ${stamps}/10 stamps`;
+  }
+
+  async function refreshAdminLoyaltyStatus(){
+    const cid = getValidAdminLoyaltyCid();
+    if(!cid){ adminLoyaltyStatusEl.textContent = ''; return; }
+    adminLoyaltyStatusEl.textContent = 'Checking…';
+    const stamps = await fetchLoyaltyStamps(cid);
+    renderAdminLoyaltyStatus(stamps);
+  }
+
+  adminLoyaltyCidInput.addEventListener('input', () => {
+    clearTimeout(adminLoyaltyDebounce);
+    adminLoyaltyDebounce = setTimeout(refreshAdminLoyaltyStatus, 500);
+  });
+
+  function getAdminLoyaltyAmount(){
+    const amount = Math.floor(Number(adminLoyaltyAmountInput.value));
+    return (Number.isFinite(amount) && amount > 0) ? amount : 1;
+  }
+
+  document.getElementById('adminAddStampsBtn').addEventListener('click', async () => {
+    const cid = getValidAdminLoyaltyCid();
+    if(!cid){
+      showAdminAlert('Enter a valid CID (1–8 digits) first.', 'Missing CID');
+      return;
+    }
+    const amount = getAdminLoyaltyAmount();
+    const current = await fetchLoyaltyStamps(cid);
+    if(current === null){ showAdminAlert('Could not reach the server. Try again.', 'Connection Issue'); return; }
+    const newStamps = current + amount;
+    const ok = await setLoyaltyStamps(cid, newStamps);
+    if(!ok){ showAdminAlert('Failed to save the change. Try again.', 'Save Failed'); return; }
+    renderAdminLoyaltyStatus(newStamps);
+    showAdminAlert(`Added ${amount} stamp${amount===1?'':'s'} for CID ${cid}. New total: ${newStamps}/10.`, 'Stamps Added');
+  });
+
+  document.getElementById('adminRemoveStampsBtn').addEventListener('click', async () => {
+    const cid = getValidAdminLoyaltyCid();
+    if(!cid){
+      showAdminAlert('Enter a valid CID (1–8 digits) first.', 'Missing CID');
+      return;
+    }
+    const amount = getAdminLoyaltyAmount();
+    const current = await fetchLoyaltyStamps(cid);
+    if(current === null){ showAdminAlert('Could not reach the server. Try again.', 'Connection Issue'); return; }
+    const newStamps = Math.max(0, current - amount);
+    const ok = await setLoyaltyStamps(cid, newStamps);
+    if(!ok){ showAdminAlert('Failed to save the change. Try again.', 'Save Failed'); return; }
+    renderAdminLoyaltyStatus(newStamps);
+    showAdminAlert(`Removed ${amount} stamp${amount===1?'':'s'} for CID ${cid}. New total: ${newStamps}/10.`, 'Stamps Removed');
   });
 
   // ---------- Recipes ----------

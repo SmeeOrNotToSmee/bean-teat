@@ -663,7 +663,9 @@
         employee: entry.employee || null,
         items: entry.items,
         total: entry.total,
-        discount: entry.discountPct
+        discount: entry.discountPct,
+        loyalty_reward: entry.loyaltyReward || 0,
+        loyalty_redemptions: entry.loyaltyRedemptions || []
       });
       if(error) console.warn('Supabase push failed', error);
     }
@@ -680,7 +682,9 @@
         employee: r.employee || null,
         items: (r.items || []).map(i=>({ ...i, unit:Number(i.unit)||0, qty:Number(i.qty)||0, lineTotal:Number(i.lineTotal)||0 })),
         total: Number(r.total)||0,
-        discountPct: Number(r.discount)||0
+        discountPct: Number(r.discount)||0,
+        loyaltyReward: Number(r.loyalty_reward)||0,
+        loyaltyRedemptions: Array.isArray(r.loyalty_redemptions) ? r.loyalty_redemptions.map(x=>({ cid:x.cid, mealPrice:Number(x.mealPrice)||0 })) : []
       }));
     }
 
@@ -1312,6 +1316,12 @@
     }
 
     function historyEntryHTML(h){
+      const redemptions = Array.isArray(h.loyaltyRedemptions) ? h.loyaltyRedemptions : [];
+      const redemptionHTML = redemptions.length
+        ? `<div class="small" style="color:var(--accent);font-weight:700;margin-top:4px;">
+             ${redemptions.map(r => `🎁 Reward redeemed (CID ${r.cid}): ${currency(r.mealPrice)} off`).join('<br>')}
+           </div>`
+        : '';
       return `
         <article class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -1319,6 +1329,7 @@
               <div><strong>${new Date(h.id).toLocaleString()}</strong></div>
               ${h.employee?`<div style="font-size:1.05rem;font-weight:700;color:var(--accent);margin:2px 0;">👤 ${h.employee}</div>`:''}
               <div class="small">${h.items.length} item(s) • Discount ${h.discountPct}%</div>
+              ${redemptionHTML}
             </div>
             <div><strong>${currency(h.total)}</strong></div>
           </div>
@@ -1995,11 +2006,12 @@
       const fee=state.fulfillment==='delivery'?(ZONE_FEES[state.deliveryZone]||0):0;
       const loyaltyReward = state.loyaltyReward || 0;
       const total=Math.max(0, +(subtotal+fee-manual-loyaltyReward).toFixed(2));
+      const loyaltyRedemptions = state.pendingRedemptions.map(r => ({ cid:r.cid, mealPrice:r.mealPrice }));
       const entry={
         id:Date.now(),
         employee: employeeName,
         items:state.cart.map(l=>({ id:l.id||null,name:l.name,qty:l.qty,unit:l.unitPrice,meta:l.meta||null,drinks:l.drinks||null,cakes:l.cakes||null,type:l.type||'extra',groupId:l.groupId||null,lineTotal:+(l.unitPrice*l.qty).toFixed(2) })),
-        discountPct:state.discountPct, subtotal:+subtotal.toFixed(2), deliveryFee:fee, manualDiscount:manual, loyaltyReward, total
+        discountPct:state.discountPct, subtotal:+subtotal.toFixed(2), deliveryFee:fee, manualDiscount:manual, loyaltyReward, loyaltyRedemptions, total
       };
 
       const cid = getValidLoyaltyCid();

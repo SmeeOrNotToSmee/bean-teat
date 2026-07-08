@@ -1608,10 +1608,36 @@
     }).join('')}</div>`;
   }
 
-  document.getElementById('saveLoyaltyEligibleBundlesBtn').addEventListener('click', () => {
+  document.getElementById('saveLoyaltyEligibleBundlesBtn').addEventListener('click', async () => {
     const checkboxes = document.querySelectorAll('.loyalty-eligible-checkbox');
-    loyaltyEligibleBundleIds = [...checkboxes].filter(cb => cb.checked).map(cb => cb.dataset.id);
-    syncStateToServer();
+    const newIds = [...checkboxes].filter(cb => cb.checked).map(cb => cb.dataset.id);
+    const previous = loyaltyEligibleBundleIds;
+    loyaltyEligibleBundleIds = newIds;
+
+    const ok = await syncStateToServer();
+    if(!ok){
+      loyaltyEligibleBundleIds = previous;
+      return; // syncStateToServer() already showed an error alert
+    }
+
+    // Re-fetch to confirm the server actually persisted this field — a write
+    // endpoint that doesn't know about a newer field can return success while
+    // silently dropping it, which looks identical to a successful save otherwise.
+    try{
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/bean_menu_state?id=eq.1&select=loyalty_eligible_bundles`, {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      const rows = res.ok ? await res.json() : [];
+      const saved = rows[0]?.loyalty_eligible_bundles;
+      const matches = Array.isArray(saved) && saved.length === newIds.length && newIds.every(id => saved.includes(id));
+      if(!matches){
+        showAdminAlert("This saved on the network side, but the server didn't actually store the meal list — the write function likely needs to be updated to accept this field. Ask Claude for the exact fix if you're not sure.", 'Not Actually Saved');
+        return;
+      }
+    }catch(err){
+      console.error('Could not verify loyalty_eligible_bundles was saved:', err);
+    }
+
     showAdminAlert('Saved which meals are eligible for loyalty redemption.', 'Saved');
   });
 

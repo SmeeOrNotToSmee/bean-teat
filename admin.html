@@ -108,6 +108,15 @@
     input.price-input::-webkit-outer-spin-button,
     input.price-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     input.price-input{-moz-appearance:textfield;appearance:textfield}
+    /* Ingredients grid: 3 across on desktop, fewer on narrower screens */
+    #ingredientsList{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    @media (max-width:680px){#ingredientsList{grid-template-columns:1fr}}
+    @media (min-width:681px) and (max-width:820px){#ingredientsList{grid-template-columns:repeat(2,1fr)}}
+    .ingredient-card{border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--card);display:flex;flex-direction:column;gap:8px}
+    .ingredient-card .name{font-weight:700}
+    .ingredient-card .meta{font-size:.85rem;color:var(--muted)}
+    .ingredient-card .actions{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+    .ingredient-card .actions .btn{padding:7px 12px;font-size:.85rem;flex:1}
   </style>
 </head>
 <body>
@@ -1214,6 +1223,8 @@
     return [...names].sort((a,b) => a.localeCompare(b));
   }
 
+  let editingIngredientName = null;
+
   function renderIngredientsList(){
     const list = document.getElementById('ingredientsList');
     const names = allKnownIngredientNames();
@@ -1226,13 +1237,31 @@
     list.innerHTML = names.map(name => {
       const price = INGREDIENT_PRICES[name];
       const isCustom = customIngredients.some(i => i.name === name);
+      const safeName = name.replace(/"/g,'&quot;');
+
+      if(editingIngredientName === name){
+        return `
+          <div class="ingredient-card">
+            <div class="name">${name}</div>
+            <div class="price-field">
+              <span class="price-prefix">$</span>
+              <input type="number" class="price-input edit-ingredient-price" min="0" step="0.01" value="${price || ''}" placeholder="0">
+            </div>
+            <div class="actions">
+              <button class="btn primary save-ingredient-price" data-name="${safeName}">Save</button>
+              <button class="btn ghost cancel-ingredient-edit">Cancel</button>
+            </div>
+          </div>`;
+      }
+
       return `
-        <div class="custom-row">
-          <div>
-            <strong>${name}</strong>
-            <div class="meta">${price ? currency(price) : 'No price set'}</div>
+        <div class="ingredient-card">
+          <div class="name">${name}</div>
+          <div class="meta">${price ? currency(price) : 'No price set'}</div>
+          <div class="actions">
+            <button class="btn edit-ingredient" data-name="${safeName}">Edit</button>
+            ${isCustom ? `<button class="btn danger" data-remove-ingredient="${safeName}">Remove</button>` : ''}
           </div>
-          ${isCustom ? `<button class="btn danger" data-remove-ingredient="${name.replace(/"/g,'&quot;')}">Remove</button>` : ''}
         </div>`;
     }).join('');
 
@@ -1242,9 +1271,42 @@
           const name = btn.dataset.removeIngredient;
           customIngredients = customIngredients.filter(i => i.name !== name);
           delete INGREDIENT_PRICES[name];
+          if(editingIngredientName === name) editingIngredientName = null;
           syncStateToServer();
           renderIngredientsList();
         }, 'Remove Ingredient?');
+      });
+    });
+
+    list.querySelectorAll('.edit-ingredient').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingIngredientName = btn.dataset.name;
+        renderIngredientsList();
+      });
+    });
+
+    list.querySelectorAll('.cancel-ingredient-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        editingIngredientName = null;
+        renderIngredientsList();
+      });
+    });
+
+    list.querySelectorAll('.save-ingredient-price').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.name;
+        const card = btn.closest('.ingredient-card');
+        const price = Number(card.querySelector('.edit-ingredient-price').value) || 0;
+
+        const existing = customIngredients.find(i => i.name === name);
+        if(existing) existing.price = price;
+        else customIngredients.push({ name, price });
+
+        INGREDIENT_PRICES[name] = price;
+        syncStateToServer();
+        editingIngredientName = null;
+        renderIngredientsList();
+        renderRecipeItemsList();
       });
     });
   }

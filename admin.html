@@ -118,8 +118,9 @@
     .ingredient-card .actions{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
     .ingredient-card .actions .btn{padding:7px 12px;font-size:.85rem;flex:1}
     /* Dashboard launcher cards: 3 across on desktop, fewer on narrower screens */
-    #dashboardPanels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
-    #dashboardPanels .panel{margin-bottom:0}
+    #dashboardPanels{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    #dashboardPanels .panel{margin-bottom:0;display:flex;flex-direction:column}
+    #dashboardPanels .panel .content{flex:1;justify-content:space-between}
     @media (max-width:900px){#dashboardPanels{grid-template-columns:repeat(2,1fr)}}
     @media (max-width:600px){#dashboardPanels{grid-template-columns:1fr}}
   </style>

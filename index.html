@@ -421,6 +421,20 @@
     </div>
   </dialog>
 
+  <dialog id="noEligibleMealModal" style="width:min(480px,94vw);">
+    <div class="modal-header">
+      <strong>No Eligible Meal in Cart</strong>
+      <button class="btn" id="closeNoEligibleMealModal" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="noEligibleMealMessage">None of the meals in this order are eligible for loyalty redemption. Add one of these instead, then click Redeem again:</div>
+      <div id="noEligibleMealList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div class="toolrow" style="justify-content:flex-end;">
+        <button class="btn" id="cancelNoEligibleMealBtn">Never Mind</button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="menu-data.js"></script>
   <script>
   (async function(){
@@ -1959,6 +1973,54 @@
       loyaltyDebounce = setTimeout(refreshLoyaltyStatus, 500);
     });
 
+    function isLoyaltyEligible(l){
+      return loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(l.id);
+    }
+
+    function eligibleBundleMenuItems(){
+      return (MENU.bundles || []).filter(b => loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(b.id));
+    }
+
+    function addBundleToCartById(id){
+      const item = (MENU.bundles || []).find(b => b.id === id);
+      if(!item) return;
+      const needsCombo = (Array.isArray(item.components) && item.components.length > 0) || item.id === 'cat-party-pack';
+      if(needsCombo){
+        openComboWizard(item, 1);
+      }else{
+        addToCart({ id:item.id, name:item.name, unitPrice:item.price, qty:1, type:'bundle' });
+      }
+    }
+
+    function openNoEligibleMealModal(){
+      const eligible = eligibleBundleMenuItems();
+      const listEl = document.getElementById('noEligibleMealList');
+      const msgEl = document.getElementById('noEligibleMealMessage');
+
+      if(!eligible.length){
+        msgEl.textContent = 'No meals are currently marked as eligible for loyalty redemption — check Shop Settings in the admin panel.';
+        listEl.innerHTML = '';
+      }else{
+        msgEl.textContent = 'None of the meals in this order are eligible for loyalty redemption. Add one of these instead, then click Redeem again:';
+        listEl.innerHTML = eligible.map(item => `
+          <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
+            <span>${item.name}</span>
+            <span>${currency(item.price)}</span>
+          </button>
+        `).join('');
+        listEl.querySelectorAll('.add-eligible-meal-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            document.getElementById('noEligibleMealModal').close();
+            addBundleToCartById(btn.dataset.id);
+          });
+        });
+      }
+
+      document.getElementById('noEligibleMealModal').showModal();
+    }
+    document.getElementById('closeNoEligibleMealModal').addEventListener('click', () => document.getElementById('noEligibleMealModal').close());
+    document.getElementById('cancelNoEligibleMealBtn').addEventListener('click', () => document.getElementById('noEligibleMealModal').close());
+
     function openRedeemLoyaltyConfirm(){
       const cid = getValidLoyaltyCid();
       if(!cid) return;
@@ -1973,18 +2035,9 @@
       document.getElementById('redeemLoyaltyModal').close();
       if(!cid) return;
 
-      function isLoyaltyEligible(l){
-        return loyaltyEligibleBundleIds === null || loyaltyEligibleBundleIds.includes(l.id);
-      }
       const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
       if(!bundleLines.length){
-        const anyMeal = state.cart.some(l => l.type === 'bundle');
-        showAlert(
-          anyMeal
-            ? "None of the meals in this order are eligible for loyalty redemption. Add an eligible meal first."
-            : 'Add a meal to the current order first — the reward takes the price of the cheapest eligible meal off the total.',
-          'No Eligible Meal in Cart'
-        );
+        openNoEligibleMealModal();
         return;
       }
       if(isRedemptionQueued(cid)){

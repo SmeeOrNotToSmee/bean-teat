@@ -1309,7 +1309,7 @@
 
   function backToAdminDashboard(){
     adminSubpanels.forEach(p => { p.style.display = 'none'; });
-    dashboardPanels.style.display = 'block';
+    dashboardPanels.style.display = 'grid';
   }
 
   document.querySelectorAll('[data-open-target]').forEach(btn => {

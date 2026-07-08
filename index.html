@@ -409,15 +409,14 @@
 
   <dialog id="redeemLoyaltyModal" style="width:min(480px,94vw);">
     <div class="modal-header">
-      <strong id="redeemLoyaltyTitle">🎉 Redeem Reward</strong>
+      <strong id="redeemLoyaltyTitle">No Eligible Meal in Cart</strong>
       <button class="btn" id="closeRedeemLoyaltyModal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <div id="redeemLoyaltyMessage">Redeem a free meal for this customer? This will make the eligible meal free. 10 stamps will be used once checkout is completed.</div>
-      <div id="redeemEligibleMealList" style="display:none;flex-direction:column;gap:8px;"></div>
-      <div class="toolrow" style="justify-content:flex-end;gap:10px;">
-        <button class="btn" id="cancelRedeemLoyaltyBtn">Cancel</button>
-        <button class="btn primary" id="confirmRedeemLoyaltyBtn">Redeem Reward</button>
+      <div id="redeemLoyaltyMessage">There's no eligible meal to redeem against right now. Add one of these instead:</div>
+      <div id="redeemEligibleMealList" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div class="toolrow" style="justify-content:flex-end;">
+        <button class="btn" id="cancelRedeemLoyaltyBtn">Never Mind</button>
       </div>
     </div>
   </dialog>
@@ -2006,83 +2005,15 @@
       return needsCombo;
     }
 
-    // Renders the single redeem dialog's content based on whether the cart currently
-    // has a free eligible-meal slot — either the normal confirm, or a list of eligible
-    // meals to add first, all inside the one popup instead of a second one after the fact.
-    function renderRedeemModalContent(){
-      const titleEl = document.getElementById('redeemLoyaltyTitle');
-      const msgEl = document.getElementById('redeemLoyaltyMessage');
-      const listEl = document.getElementById('redeemEligibleMealList');
-      const confirmBtn = document.getElementById('confirmRedeemLoyaltyBtn');
-
-      const freeSlots = getEligibleMealSlots().length - state.pendingRedemptions.length;
-
-      if(freeSlots > 0){
-        titleEl.textContent = '🎉 Redeem Reward';
-        msgEl.textContent = "Redeem a free meal for this customer? This will make the eligible meal free. 10 stamps will be used once checkout is completed.";
-        listEl.style.display = 'none';
-        listEl.innerHTML = '';
-        confirmBtn.style.display = 'inline-flex';
-        return;
-      }
-
-      // No free eligible-meal slot — either there's no eligible meal at all, or every
-      // eligible meal in the cart is already spoken for by another queued redemption.
-      // Same dialog, different content: let them add one right here.
-      titleEl.textContent = 'No Eligible Meal in Cart';
-      confirmBtn.style.display = 'none';
-      const eligible = eligibleBundleMenuItems();
-
-      if(!eligible.length){
-        msgEl.textContent = 'No meals are currently marked as eligible for loyalty redemption — check Shop Settings in the admin panel.';
-        listEl.style.display = 'none';
-        listEl.innerHTML = '';
-        return;
-      }
-
-      msgEl.textContent = 'There\'s no eligible meal free to redeem against right now. Add one of these instead:';
-      listEl.style.display = 'flex';
-      listEl.innerHTML = eligible.map(item => `
-        <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
-          <span>${item.name}</span>
-          <span>${currency(item.price)}</span>
-        </button>
-      `).join('');
-      listEl.querySelectorAll('.add-eligible-meal-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const usedWizard = addBundleToCartById(btn.dataset.id);
-          if(usedWizard){
-            // The wizard is its own multi-step dialog — close this one rather than
-            // stacking two, and let them click Redeem again once it's done.
-            document.getElementById('redeemLoyaltyModal').close();
-          }else{
-            renderRedeemModalContent(); // meal's in the cart now — flip this same dialog to the normal confirm
-          }
-        });
-      });
-    }
-
-    function openRedeemLoyaltyConfirm(){
-      const cid = getValidLoyaltyCid();
-      if(!cid) return;
-      pendingRedeemCid = cid;
-      renderRedeemModalContent();
-      document.getElementById('redeemLoyaltyModal').showModal();
-    }
-    document.getElementById('closeRedeemLoyaltyModal').addEventListener('click', () => document.getElementById('redeemLoyaltyModal').close());
-    document.getElementById('cancelRedeemLoyaltyBtn').addEventListener('click', () => document.getElementById('redeemLoyaltyModal').close());
-    document.getElementById('confirmRedeemLoyaltyBtn').addEventListener('click', () => {
-      const cid = pendingRedeemCid;
-      pendingRedeemCid = null;
-      document.getElementById('redeemLoyaltyModal').close();
-      if(!cid) return;
-
+    // Actually queues the redemption (no confirmation step) and shows the one
+    // result popup. Caller must have already confirmed a free slot exists.
+    function performRedemption(cid){
       if(isRedemptionQueued(cid)){
         showAlert('A reward for this CID is already queued for this order.', 'Already Queued');
         return;
       }
       const freeSlots = getEligibleMealSlots().length - state.pendingRedemptions.length;
-      if(freeSlots <= 0) return; // shouldn't happen — button is hidden in this case
+      if(freeSlots <= 0) return;
 
       // Nothing is deducted from the server yet, and no price is frozen here either —
       // the stamps are only spent (and the discount amount finalized) once checkout
@@ -2094,9 +2025,64 @@
 
       const assignments = getLoyaltyRedemptionAssignments();
       const mealPrice = assignments[assignments.length - 1].mealPrice;
-      showAlert(`Reward queued! ${currency(mealPrice)} (their cheapest eligible meal) will come off this order's total, and 10 stamps will be used from this customer's card once checkout is completed.`, 'Reward Queued');
-    });
+      showAlert(`Reward redeemed! ${currency(mealPrice)} (their cheapest eligible meal) has been taken off this order's total. 10 stamps will be used from this customer's card once checkout is completed.`, 'Reward Redeemed');
+    }
 
+    // Only shown when there's no free eligible-meal slot yet — lets them add one,
+    // then immediately redeems against it in the same click (for simple meals).
+    function renderMealPickerContent(){
+      const msgEl = document.getElementById('redeemLoyaltyMessage');
+      const listEl = document.getElementById('redeemEligibleMealList');
+      const eligible = eligibleBundleMenuItems();
+
+      if(!eligible.length){
+        msgEl.textContent = 'No meals are currently marked as eligible for loyalty redemption — check Shop Settings in the admin panel.';
+        listEl.innerHTML = '';
+        return;
+      }
+
+      msgEl.textContent = "There's no eligible meal to redeem against right now. Add one of these instead:";
+      listEl.innerHTML = eligible.map(item => `
+        <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
+          <span>${item.name}</span>
+          <span>${currency(item.price)}</span>
+        </button>
+      `).join('');
+      listEl.querySelectorAll('.add-eligible-meal-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const cid = pendingRedeemCid;
+          const usedWizard = addBundleToCartById(btn.dataset.id);
+          document.getElementById('redeemLoyaltyModal').close();
+          if(usedWizard){
+            // The wizard is its own multi-step dialog — the meal isn't actually in the
+            // cart until it's finished, so there's nothing to redeem against yet.
+            // Clicking Redeem again once it's done will apply instantly.
+            pendingRedeemCid = null;
+          }else if(cid){
+            pendingRedeemCid = null;
+            performRedemption(cid);
+          }
+        });
+      });
+    }
+
+    function openRedeemLoyaltyConfirm(){
+      const cid = getValidLoyaltyCid();
+      if(!cid) return;
+
+      const freeSlots = getEligibleMealSlots().length - state.pendingRedemptions.length;
+      if(freeSlots > 0){
+        performRedemption(cid);
+        return;
+      }
+
+      // No free eligible-meal slot — need the user to pick a meal to add first.
+      pendingRedeemCid = cid;
+      renderMealPickerContent();
+      document.getElementById('redeemLoyaltyModal').showModal();
+    }
+    document.getElementById('closeRedeemLoyaltyModal').addEventListener('click', () => document.getElementById('redeemLoyaltyModal').close());
+    document.getElementById('cancelRedeemLoyaltyBtn').addEventListener('click', () => document.getElementById('redeemLoyaltyModal').close());
 
     function renderAll(){ renderCards(); renderCart(); renderFulfillment(); renderTotals(); renderDiscount(); renderHistory(); renderIngredients(); renderItemTotals(); }
 

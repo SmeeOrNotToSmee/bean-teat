@@ -37,7 +37,7 @@
     .card .btn{margin-top:auto}
     .price{color:var(--accent);font-weight:700}
     .muted{color:var(--muted);font-size:.9rem}
-    #loyaltyStatus:not(:empty){background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 12px;box-shadow:var(--shadow);z-index:5}
+    #loyaltyStatus:not(:empty){display:inline-block;margin-top:10px;font-size:.92rem;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:8px 12px;box-shadow:var(--shadow)}
     .qty{display:grid;grid-template-columns:32px 1fr 32px;align-items:center;gap:8px;margin-top:6px}
     .qty.static{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:6px}
     .qty.static button{width:auto;padding:4px 10px;font-size:12px}
@@ -181,12 +181,12 @@
       </aside>
 
       <aside class="panel">
-        <div style="position:relative;padding:16px 18px;border-bottom:1px solid var(--border);min-height:24px;">
-          <h2 id="checkoutPanelTitle" style="margin:0;padding:0;border:none;">Checkout</h2>
-          <div style="position:absolute;top:16px;right:18px;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <h2 id="checkoutPanelTitle" style="margin:0;padding:0;border:none;">Checkout</h2>
             <input type="text" id="loyaltyCid" placeholder="Loyalty Num: CID" inputmode="numeric" maxlength="8" style="padding:7px 10px;border-radius:12px;border:1px solid var(--border);background:var(--chip);color:var(--text);font-size:.85rem;width:140px;">
-            <div id="loyaltyStatus" class="muted" style="font-size:.92rem;max-width:260px;text-align:right;"></div>
           </div>
+          <div id="loyaltyStatus" class="muted"></div>
         </div>
         <div class="content">
           <div id="checkout-regular">

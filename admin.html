@@ -153,72 +153,34 @@
 
     <div id="dashboardPanels">
     <div class="panel">
-      <h2>Add an Item</h2>
+      <h2>➕ Add an Item</h2>
       <div class="content">
-        <div class="small">Items added here appear on the calculator right away. Since there's no shared login/admin system yet, they're saved to this browser only — they won't automatically show up on other computers. That's the next piece we'll build.</div>
-
-        <div>
-          <label for="category">Category</label>
-          <select id="category">
-            <option value="classic">☕ Drinks</option>
-            <option value="iceCream">🍦 Ice Cream</option>
-            <option value="extras">🧁 Bakes &amp; Treats</option>
-            <option value="bundles">🥐 Meals &amp; Bundles</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="itemName">Item Name</label>
-          <input id="itemName" type="text" placeholder="e.g. Double Choc Cookie">
-        </div>
-
-        <div>
-          <label for="itemPrice">Price</label>
-          <div class="price-field">
-            <span class="price-prefix">$</span>
-            <input id="itemPrice" type="number" class="price-input" min="0" step="1" placeholder="0">
-          </div>
-        </div>
-
-        <div id="bundleFields">
-          <div>
-            <label for="itemDescription">Description (shown on the card)</label>
-            <input id="itemDescription" type="text" placeholder="e.g. Choice of 5 drinks + 5 waffles">
-          </div>
-          <div class="small">After you click "Add Item," the contents editor will open automatically so you can pick what's included (choices, fixed items, and quantities).</div>
-        </div>
-
-        <small class="warning" id="formWarning">⚠ Enter a name and a price greater than $0.</small>
-
-        <div class="toolrow">
-          <button class="btn primary" id="addBtn">Add Item</button>
-        </div>
+        <div class="small">Add new items to the shop's menu — they appear on the calculator right away.</div>
+        <button class="btn" data-open-target="addItemPanel" style="align-self:flex-start;">➕ Open Add an Item</button>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Items Added So Far (this device)</h2>
-      <div class="content" id="customList" style="gap:10px;"></div>
+      <h2>🗂️ Items Added So Far</h2>
+      <div class="content">
+        <div class="small">Items you've added on this device.</div>
+        <button class="btn" data-open-target="customItemsPanel" style="align-self:flex-start;">🗂️ Open Items Added So Far</button>
+      </div>
     </div>
 
     <div class="panel">
       <h2>🥐 Meals &amp; Bundles</h2>
       <div class="content">
         <div class="small">Click a bundle to open its editor — change the price, name, description, or exactly what's included.</div>
-        <div id="editBundlesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn" data-open-target="bundlesPanel" style="align-self:flex-start;">🥐 Open Meals &amp; Bundles</button>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Edit Existing Items</h2>
+      <h2>✏️ Edit Existing Items</h2>
       <div class="content">
         <div class="small">Pick a category to show its items, change a price or name, and hit Save. This saves an override on this device — it doesn't rewrite the original menu file, and you can reset any item back to its default anytime.</div>
-        <div class="toolrow" id="editCategoryButtons" style="justify-content:flex-start;">
-          <button class="btn" data-category="classic">☕ Drinks</button>
-          <button class="btn" data-category="iceCream">🍦 Ice Cream</button>
-          <button class="btn" data-category="extras">🧁 Bakes &amp; Treats</button>
-        </div>
-        <div id="editList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <button class="btn" data-open-target="editItemsPanel" style="align-self:flex-start;">✏️ Open Edit Existing Items</button>
       </div>
     </div>
 
@@ -226,7 +188,7 @@
       <h2>🗑️ Deleted Items</h2>
       <div class="content">
         <div class="small">Anything deleted from Meals &amp; Bundles or Edit Existing Items shows up here — nothing is ever permanently removed from the menu file, so you can bring it back anytime.</div>
-        <div id="deletedList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <button class="btn" data-open-target="deletedItemsPanel" style="align-self:flex-start;">🗑️ Open Deleted Items</button>
       </div>
     </div>
 
@@ -234,7 +196,7 @@
       <h2>⚙️ Shop Settings</h2>
       <div class="content">
         <div class="small">Discount tiers and delivery zone fees used at checkout, for both the regular order and catering flows.</div>
-        <button class="btn" id="openShopSettingsBtn" style="align-self:flex-start;">⚙️ Open Shop Settings</button>
+        <button class="btn" data-open-target="shopSettingsPanel" style="align-self:flex-start;">⚙️ Open Shop Settings</button>
       </div>
     </div>
 
@@ -242,7 +204,7 @@
       <h2>🧾 Ingredients</h2>
       <div class="content">
         <div class="small">Add ingredients so they're available to use when building recipes, and set prices for the ingredient cost list.</div>
-        <button class="btn" id="openIngredientsBtn" style="align-self:flex-start;">🧾 Open Ingredients</button>
+        <button class="btn" data-open-target="ingredientsPanel" style="align-self:flex-start;">🧾 Open Ingredients</button>
       </div>
     </div>
 
@@ -250,7 +212,7 @@
       <h2>📋 Recipes</h2>
       <div class="content">
         <div class="small">Pick an item to add or edit what ingredients (and how many) it takes to make.</div>
-        <button class="btn" id="openRecipesBtn" style="align-self:flex-start;">📋 Open Recipes</button>
+        <button class="btn" data-open-target="recipesPanel" style="align-self:flex-start;">📋 Open Recipes</button>
       </div>
     </div>
 
@@ -258,14 +220,150 @@
       <h2>🎁 Loyalty</h2>
       <div class="content">
         <div class="small">Look up a customer's CID and manually add or remove stamps — for corrections, comps, or fixing a mistake.</div>
-        <button class="btn" id="openLoyaltyBtn" style="align-self:flex-start;">🎁 Open Loyalty</button>
+        <button class="btn" data-open-target="loyaltyPanel" style="align-self:flex-start;">🎁 Open Loyalty</button>
       </div>
     </div>
     </div>
 
-    <div id="ingredientsPanel" style="display:none;">
+    <div id="addItemPanel" class="admin-subpanel" style="display:none;">
       <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
-        <button class="btn ghost" id="backFromIngredientsBtn">← Back to Menu</button>
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>➕ Add an Item</h2>
+        <div class="content">
+          <div class="small">Items added here appear on the calculator right away. Since there's no shared login/admin system yet, they're saved to this browser only — they won't automatically show up on other computers. That's the next piece we'll build.</div>
+
+          <div>
+            <label for="category">Category</label>
+            <select id="category">
+              <option value="classic">☕ Drinks</option>
+              <option value="iceCream">🍦 Ice Cream</option>
+              <option value="extras">🧁 Bakes &amp; Treats</option>
+              <option value="bundles">🥐 Meals &amp; Bundles</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="itemName">Item Name</label>
+            <input id="itemName" type="text" placeholder="e.g. Double Choc Cookie">
+          </div>
+
+          <div>
+            <label for="itemPrice">Price</label>
+            <div class="price-field">
+              <span class="price-prefix">$</span>
+              <input id="itemPrice" type="number" class="price-input" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+
+          <div id="bundleFields">
+            <div>
+              <label for="itemDescription">Description (shown on the card)</label>
+              <input id="itemDescription" type="text" placeholder="e.g. Choice of 5 drinks + 5 waffles">
+            </div>
+            <div class="small">After you click "Add Item," the contents editor will open automatically so you can pick what's included (choices, fixed items, and quantities).</div>
+          </div>
+
+          <small class="warning" id="formWarning">⚠ Enter a name and a price greater than $0.</small>
+
+          <div class="toolrow">
+            <button class="btn primary" id="addBtn">Add Item</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="customItemsPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>Items Added So Far (this device)</h2>
+        <div class="content" id="customList" style="gap:10px;"></div>
+      </div>
+    </div>
+
+    <div id="bundlesPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>🥐 Meals &amp; Bundles</h2>
+        <div class="content">
+          <div class="small">Click a bundle to open its editor — change the price, name, description, or exactly what's included.</div>
+          <div id="editBundlesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="editItemsPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>Edit Existing Items</h2>
+        <div class="content">
+          <div class="small">Pick a category to show its items, change a price or name, and hit Save. This saves an override on this device — it doesn't rewrite the original menu file, and you can reset any item back to its default anytime.</div>
+          <div class="toolrow" id="editCategoryButtons" style="justify-content:flex-start;">
+            <button class="btn" data-category="classic">☕ Drinks</button>
+            <button class="btn" data-category="iceCream">🍦 Ice Cream</button>
+            <button class="btn" data-category="extras">🧁 Bakes &amp; Treats</button>
+          </div>
+          <div id="editList" style="display:flex;flex-direction:column;gap:10px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="deletedItemsPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>🗑️ Deleted Items</h2>
+        <div class="content">
+          <div class="small">Anything deleted from Meals &amp; Bundles or Edit Existing Items shows up here — nothing is ever permanently removed from the menu file, so you can bring it back anytime.</div>
+          <div id="deletedList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="shopSettingsPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>⚙️ Shop Settings</h2>
+        <div class="content">
+          <div class="small">These control the buttons customers' orders use at checkout — the discount tiers and delivery zone fees. Changes apply to both the regular order and catering flows.</div>
+
+          <div>
+            <label style="margin-bottom:8px;display:block;">Discount Tiers <span class="muted" style="font-weight:400;">("0%" is always available and can't be removed)</span></label>
+            <div id="discountTiersList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div class="toolrow" style="justify-content:flex-start;margin-top:8px;">
+              <button class="btn ghost" id="addTierBtn">+ Add Tier</button>
+            </div>
+          </div>
+
+          <div>
+            <label style="margin-bottom:8px;display:block;">Delivery Zones &amp; Fees</label>
+            <div id="deliveryZonesList" style="display:flex;flex-direction:column;gap:8px;"></div>
+            <div class="toolrow" style="justify-content:flex-start;margin-top:8px;">
+              <button class="btn ghost" id="addZoneBtn">+ Add Zone</button>
+            </div>
+          </div>
+
+          <div class="toolrow" style="justify-content:flex-end;">
+            <button class="btn ghost" id="resetShopSettingsBtn">Reset to Defaults</button>
+            <button class="btn primary" id="saveShopSettingsBtn">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ingredientsPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
       </div>
 
       <div class="panel">
@@ -289,9 +387,28 @@
       </div>
     </div>
 
-    <div id="loyaltyPanel" style="display:none;">
+    <div id="recipesPanel" class="admin-subpanel" style="display:none;">
       <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
-        <button class="btn ghost" id="backFromLoyaltyBtn">← Back to Menu</button>
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
+      </div>
+      <div class="panel">
+        <h2>📋 Recipes</h2>
+        <div class="content">
+          <div class="small">Pick an item to add or edit what ingredients (and how many) it takes to make.</div>
+          <div class="toolrow" id="recipeCategoryButtons" style="justify-content:flex-start;">
+            <button class="btn" data-recipe-category="classic">☕ Drinks</button>
+            <button class="btn" data-recipe-category="iceCream">🍦 Ice Cream</button>
+            <button class="btn" data-recipe-category="extras">🧁 Bakes &amp; Treats</button>
+            <button class="btn" data-recipe-category="bundles">🥐 Meals &amp; Bundles</button>
+          </div>
+          <div id="recipeItemsList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="loyaltyPanel" class="admin-subpanel" style="display:none;">
+      <div class="toolrow" style="justify-content:flex-start;margin-bottom:16px;">
+        <button class="btn ghost back-to-menu-btn">← Back to Menu</button>
       </div>
 
       <div class="panel">
@@ -320,60 +437,12 @@
     </div>
   </div>
 
-  <dialog id="recipesModal" style="width:min(520px,94vw);">
-    <div class="modal-header">
-      <strong>📋 Recipes</strong>
-      <button class="btn" id="closeRecipesModal" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="small">Pick an item to add or edit what ingredients (and how many) it takes to make.</div>
-      <div class="toolrow" id="recipeCategoryButtons" style="justify-content:flex-start;">
-        <button class="btn" data-recipe-category="classic">☕ Drinks</button>
-        <button class="btn" data-recipe-category="iceCream">🍦 Ice Cream</button>
-        <button class="btn" data-recipe-category="extras">🧁 Bakes &amp; Treats</button>
-        <button class="btn" data-recipe-category="bundles">🥐 Meals &amp; Bundles</button>
-      </div>
-      <div id="recipeItemsList" style="display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
-  </dialog>
-
   <dialog id="recipeEditModal" style="width:min(520px,94vw);">
     <div class="modal-header">
       <strong id="recipeEditModalTitle">Edit Recipe</strong>
       <button class="btn" id="closeRecipeEditModal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body" id="recipeEditModalBody"></div>
-  </dialog>
-
-  <dialog id="shopSettingsModal" style="width:min(560px,94vw);">
-    <div class="modal-header">
-      <strong>⚙️ Shop Settings</strong>
-      <button class="btn" id="closeShopSettingsModal">✕</button>
-    </div>
-    <div class="modal-body">
-      <div class="small">These control the buttons customers' orders use at checkout — the discount tiers and delivery zone fees. Changes apply to both the regular order and catering flows.</div>
-
-      <div>
-        <label style="margin-bottom:8px;display:block;">Discount Tiers <span class="muted" style="font-weight:400;">("0%" is always available and can't be removed)</span></label>
-        <div id="discountTiersList" style="display:flex;flex-direction:column;gap:8px;"></div>
-        <div class="toolrow" style="justify-content:flex-start;margin-top:8px;">
-          <button class="btn ghost" id="addTierBtn">+ Add Tier</button>
-        </div>
-      </div>
-
-      <div>
-        <label style="margin-bottom:8px;display:block;">Delivery Zones &amp; Fees</label>
-        <div id="deliveryZonesList" style="display:flex;flex-direction:column;gap:8px;"></div>
-        <div class="toolrow" style="justify-content:flex-start;margin-top:8px;">
-          <button class="btn ghost" id="addZoneBtn">+ Add Zone</button>
-        </div>
-      </div>
-
-      <div class="toolrow" style="justify-content:flex-end;">
-        <button class="btn ghost" id="resetShopSettingsBtn">Reset to Defaults</button>
-        <button class="btn primary" id="saveShopSettingsBtn">Save Settings</button>
-      </div>
-    </div>
   </dialog>
 
   <dialog id="adminAlertModal" style="width:min(440px,94vw);">
@@ -1192,35 +1261,38 @@
     });
   }
 
-  const shopSettingsModal = document.getElementById('shopSettingsModal');
-  document.getElementById('openShopSettingsBtn').addEventListener('click', () => shopSettingsModal.showModal());
-
+  // ---------- Generic "Open X" / "Back to Menu" subpanel switching ----------
+  // Every dashboard card just has a data-open-target button; every full-page
+  // section shares the .admin-subpanel class and a .back-to-menu-btn.
   const dashboardPanels = document.getElementById('dashboardPanels');
-  const ingredientsPanel = document.getElementById('ingredientsPanel');
-  document.getElementById('openIngredientsBtn').addEventListener('click', () => {
-    dashboardPanels.style.display = 'none';
-    ingredientsPanel.style.display = 'block';
-    renderIngredientsList();
-  });
-  document.getElementById('backFromIngredientsBtn').addEventListener('click', () => {
-    ingredientsPanel.style.display = 'none';
-    dashboardPanels.style.display = 'block';
-  });
+  const adminSubpanels = document.querySelectorAll('.admin-subpanel');
 
-  const loyaltyPanel = document.getElementById('loyaltyPanel');
-  document.getElementById('openLoyaltyBtn').addEventListener('click', () => {
-    dashboardPanels.style.display = 'none';
-    loyaltyPanel.style.display = 'block';
-  });
-  document.getElementById('backFromLoyaltyBtn').addEventListener('click', () => {
-    loyaltyPanel.style.display = 'none';
-    dashboardPanels.style.display = 'block';
-  });
+  // A few panels want their list freshly rendered the moment they're opened.
+  const ADMIN_SUBPANEL_ON_OPEN = {
+    customItemsPanel: () => renderCustomList(),
+    bundlesPanel: () => renderBundlesList(),
+    editItemsPanel: () => renderEditList(),
+    deletedItemsPanel: () => renderDeletedList(),
+    ingredientsPanel: () => renderIngredientsList()
+  };
 
-  const recipesModal = document.getElementById('recipesModal');
-  document.getElementById('openRecipesBtn').addEventListener('click', () => recipesModal.showModal());
-  document.getElementById('closeRecipesModal').addEventListener('click', () => recipesModal.close());
-  document.getElementById('closeShopSettingsModal').addEventListener('click', () => shopSettingsModal.close());
+  function showAdminSubpanel(id){
+    dashboardPanels.style.display = 'none';
+    adminSubpanels.forEach(p => { p.style.display = (p.id === id) ? 'block' : 'none'; });
+    if(ADMIN_SUBPANEL_ON_OPEN[id]) ADMIN_SUBPANEL_ON_OPEN[id]();
+  }
+
+  function backToAdminDashboard(){
+    adminSubpanels.forEach(p => { p.style.display = 'none'; });
+    dashboardPanels.style.display = 'block';
+  }
+
+  document.querySelectorAll('[data-open-target]').forEach(btn => {
+    btn.addEventListener('click', () => showAdminSubpanel(btn.dataset.openTarget));
+  });
+  document.querySelectorAll('.back-to-menu-btn').forEach(btn => {
+    btn.addEventListener('click', backToAdminDashboard);
+  });
 
   document.getElementById('addTierBtn').addEventListener('click', () => {
     workingDiscountTiers.push({ label: 'New Tier', pct: 5 });

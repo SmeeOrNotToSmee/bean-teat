@@ -407,30 +407,17 @@
     </div>
   </dialog>
 
-  <dialog id="redeemLoyaltyModal">
+  <dialog id="redeemLoyaltyModal" style="width:min(480px,94vw);">
     <div class="modal-header">
-      <strong>🎉 Redeem Reward</strong>
+      <strong id="redeemLoyaltyTitle">🎉 Redeem Reward</strong>
       <button class="btn" id="closeRedeemLoyaltyModal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
       <div id="redeemLoyaltyMessage">Redeem a free meal for this customer? This will take the price of their cheapest meal off this order's total. 10 stamps will be used once checkout is completed.</div>
+      <div id="redeemEligibleMealList" style="display:none;flex-direction:column;gap:8px;"></div>
       <div class="toolrow" style="justify-content:flex-end;gap:10px;">
         <button class="btn" id="cancelRedeemLoyaltyBtn">Cancel</button>
         <button class="btn primary" id="confirmRedeemLoyaltyBtn">Redeem Reward</button>
-      </div>
-    </div>
-  </dialog>
-
-  <dialog id="noEligibleMealModal" style="width:min(480px,94vw);">
-    <div class="modal-header">
-      <strong>No Eligible Meal in Cart</strong>
-      <button class="btn" id="closeNoEligibleMealModal" aria-label="Close">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="noEligibleMealMessage">None of the meals in this order are eligible for loyalty redemption. Add one of these instead, then click Redeem again:</div>
-      <div id="noEligibleMealList" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div class="toolrow" style="justify-content:flex-end;">
-        <button class="btn" id="cancelNoEligibleMealBtn">Never Mind</button>
       </div>
     </div>
   </dialog>
@@ -1983,48 +1970,76 @@
 
     function addBundleToCartById(id){
       const item = (MENU.bundles || []).find(b => b.id === id);
-      if(!item) return;
+      if(!item) return false;
       const needsCombo = (Array.isArray(item.components) && item.components.length > 0) || item.id === 'cat-party-pack';
       if(needsCombo){
         openComboWizard(item, 1);
       }else{
         addToCart({ id:item.id, name:item.name, unitPrice:item.price, qty:1, type:'bundle' });
       }
+      return needsCombo;
     }
 
-    function openNoEligibleMealModal(){
+    // Renders the single redeem dialog's content based on whether the cart currently
+    // has an eligible meal — either the normal confirm, or a list of eligible meals
+    // to add first, all inside the one popup instead of a second one after the fact.
+    function renderRedeemModalContent(){
+      const titleEl = document.getElementById('redeemLoyaltyTitle');
+      const msgEl = document.getElementById('redeemLoyaltyMessage');
+      const listEl = document.getElementById('redeemEligibleMealList');
+      const confirmBtn = document.getElementById('confirmRedeemLoyaltyBtn');
+
+      const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
+
+      if(bundleLines.length){
+        titleEl.textContent = '🎉 Redeem Reward';
+        msgEl.textContent = "Redeem a free meal for this customer? This will take the price of their cheapest meal off this order's total. 10 stamps will be used once checkout is completed.";
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+        confirmBtn.style.display = 'inline-flex';
+        return;
+      }
+
+      // No eligible meal in the cart yet — same dialog, different content: let them
+      // add one right here instead of bouncing to a second popup.
+      titleEl.textContent = 'No Eligible Meal in Cart';
+      confirmBtn.style.display = 'none';
       const eligible = eligibleBundleMenuItems();
-      const listEl = document.getElementById('noEligibleMealList');
-      const msgEl = document.getElementById('noEligibleMealMessage');
 
       if(!eligible.length){
         msgEl.textContent = 'No meals are currently marked as eligible for loyalty redemption — check Shop Settings in the admin panel.';
+        listEl.style.display = 'none';
         listEl.innerHTML = '';
-      }else{
-        msgEl.textContent = 'None of the meals in this order are eligible for loyalty redemption. Add one of these instead, then click Redeem again:';
-        listEl.innerHTML = eligible.map(item => `
-          <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
-            <span>${item.name}</span>
-            <span>${currency(item.price)}</span>
-          </button>
-        `).join('');
-        listEl.querySelectorAll('.add-eligible-meal-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            document.getElementById('noEligibleMealModal').close();
-            addBundleToCartById(btn.dataset.id);
-          });
-        });
+        return;
       }
 
-      document.getElementById('noEligibleMealModal').showModal();
+      msgEl.textContent = 'None of the meals in this order are eligible for loyalty redemption. Add one of these instead:';
+      listEl.style.display = 'flex';
+      listEl.innerHTML = eligible.map(item => `
+        <button class="btn block add-eligible-meal-btn" data-id="${item.id}" style="justify-content:space-between;">
+          <span>${item.name}</span>
+          <span>${currency(item.price)}</span>
+        </button>
+      `).join('');
+      listEl.querySelectorAll('.add-eligible-meal-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const usedWizard = addBundleToCartById(btn.dataset.id);
+          if(usedWizard){
+            // The wizard is its own multi-step dialog — close this one rather than
+            // stacking two, and let them click Redeem again once it's done.
+            document.getElementById('redeemLoyaltyModal').close();
+          }else{
+            renderRedeemModalContent(); // meal's in the cart now — flip this same dialog to the normal confirm
+          }
+        });
+      });
     }
-    document.getElementById('closeNoEligibleMealModal').addEventListener('click', () => document.getElementById('noEligibleMealModal').close());
-    document.getElementById('cancelNoEligibleMealBtn').addEventListener('click', () => document.getElementById('noEligibleMealModal').close());
 
     function openRedeemLoyaltyConfirm(){
       const cid = getValidLoyaltyCid();
       if(!cid) return;
       pendingRedeemCid = cid;
+      renderRedeemModalContent();
       document.getElementById('redeemLoyaltyModal').showModal();
     }
     document.getElementById('closeRedeemLoyaltyModal').addEventListener('click', () => document.getElementById('redeemLoyaltyModal').close());
@@ -2036,10 +2051,7 @@
       if(!cid) return;
 
       const bundleLines = state.cart.filter(l => l.type === 'bundle' && isLoyaltyEligible(l));
-      if(!bundleLines.length){
-        openNoEligibleMealModal();
-        return;
-      }
+      if(!bundleLines.length) return; // shouldn't happen — button is hidden in this case
       if(isRedemptionQueued(cid)){
         showAlert('A reward for this CID is already queued for this order.', 'Already Queued');
         return;

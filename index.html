@@ -2028,7 +2028,7 @@
 
       const assignments = getLoyaltyRedemptionAssignments();
       const mealPrice = assignments[assignments.length - 1].mealPrice;
-      showAlert(`Reward redeemed! ${currency(mealPrice)} (their cheapest eligible meal) has been taken off this order's total. 10 stamps will be used from this customer's card once checkout is completed.`, 'Reward Redeemed');
+      showAlert(`Reward redeemed! ${currency(mealPrice)} has been taken off this order's total. 10 stamps will be used from this customer's balance once checkout is completed.`, 'Reward Redeemed');
     }
 
     // Only shown when there's no free eligible-meal slot yet — lets them add one,

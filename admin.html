@@ -161,7 +161,7 @@
           <label for="category">Category</label>
           <select id="category">
             <option value="classic">☕ Drinks</option>
-            <option value="iceCream">🍦 Food (Ice Cream)</option>
+            <option value="iceCream">🍦 Ice Cream</option>
             <option value="extras">🧁 Bakes &amp; Treats</option>
             <option value="bundles">🥐 Meals &amp; Bundles</option>
           </select>
@@ -215,7 +215,7 @@
         <div class="small">Pick a category to show its items, change a price or name, and hit Save. This saves an override on this device — it doesn't rewrite the original menu file, and you can reset any item back to its default anytime.</div>
         <div class="toolrow" id="editCategoryButtons" style="justify-content:flex-start;">
           <button class="btn" data-category="classic">☕ Drinks</button>
-          <button class="btn" data-category="iceCream">🍦 Food (Ice Cream)</button>
+          <button class="btn" data-category="iceCream">🍦 Ice Cream</button>
           <button class="btn" data-category="extras">🧁 Bakes &amp; Treats</button>
         </div>
         <div id="editList" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -291,7 +291,7 @@
       <div class="small">Pick an item to add or edit what ingredients (and how many) it takes to make.</div>
       <div class="toolrow" id="recipeCategoryButtons" style="justify-content:flex-start;">
         <button class="btn" data-recipe-category="classic">☕ Drinks</button>
-        <button class="btn" data-recipe-category="iceCream">🍦 Food (Ice Cream)</button>
+        <button class="btn" data-recipe-category="iceCream">🍦 Ice Cream</button>
         <button class="btn" data-recipe-category="extras">🧁 Bakes &amp; Treats</button>
         <button class="btn" data-recipe-category="bundles">🥐 Meals &amp; Bundles</button>
       </div>
@@ -698,7 +698,7 @@
 
   const CATEGORY_LABELS = {
     classic:'☕ Drinks',
-    iceCream:'🍦 Food (Ice Cream)',
+    iceCream:'🍦 Ice Cream',
     extras:'🧁 Bakes & Treats',
     bundles:'🥐 Meals & Bundles'
   };
@@ -823,7 +823,7 @@
   const editBundlesList = document.getElementById('editBundlesList');
   let activeEditCategory = null;
 
-  const CONTENT_CATEGORIES = { classic:'☕ Drinks', iceCream:'🍦 Food (Ice Cream)', extras:'🧁 Bakes & Treats' };
+  const CONTENT_CATEGORIES = { classic:'☕ Drinks', iceCream:'🍦 Ice Cream', extras:'🧁 Bakes & Treats' };
 
   function effectiveItem(item){
     return { ...item, ...(menuOverrides[item.id] || {}) };
